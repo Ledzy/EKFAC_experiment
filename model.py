@@ -16,6 +16,21 @@ class MLPNet(nn.Module):
         x = F.softmax(self.fc3(x))
         return x
 
+class AEMNIST(nn.Module):
+    def __init__(self):
+        super(AEMNIST, self).__init__()
+        units = [28*28, 1000, 500, 250, 30, \
+                    250, 500, 1000, 28*28]
+        self.fc_layers = nn.ModuleList([nn.Linear(units[i], units[i+1]) for i in range(len(units)-1)])
+        # for i in range(len(units)-1):
+        #     self.fc_layers.append(nn.Linear(units[i], units[i+1]))
+    
+    def forward(self, x):
+        x = x.view(-1, 28*28)
+        for fc in self.fc_layers:
+            x = F.sigmoid(fc(x))
+        return x
+
 class CNN(nn.Module):
     def __init__(self):
         super(CNN, self).__init__()

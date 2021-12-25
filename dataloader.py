@@ -10,7 +10,7 @@ import torch.optim as optim
 use_cuda = torch.cuda.is_available()
 
 def get_loader_MNIST(batch_size=1):
-    trans = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (1.0,))])
+    trans = transforms.Compose([transforms.ToTensor()])
 
     root = './datasets'
     train_set = dset.MNIST(root=root, train=True, transform=trans, download=True)
@@ -26,4 +26,5 @@ def get_loader_MNIST(batch_size=1):
                     shuffle=False)
     return train_loader, test_loader
 
-get_loader_MNIST()
+if __name__ == '__main__':
+    get_loader_MNIST()
