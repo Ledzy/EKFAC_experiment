@@ -10,7 +10,9 @@ import torch.optim as optim
 use_cuda = torch.cuda.is_available()
 
 def get_loader_MNIST(batch_size=1):
-    trans = transforms.Compose([transforms.ToTensor()])
+    trans = transforms.Compose([transforms.ToTensor(), 
+    # transforms.Normalize((0.1307,), (0.3081,))
+    ])
 
     root = './datasets'
     train_set = dset.MNIST(root=root, train=True, transform=trans, download=True)

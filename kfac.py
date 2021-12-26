@@ -103,6 +103,7 @@ class KFAC(Optimizer):
         """Saves grad on output of layer to compute covariance."""
         if mod.training:
             self.state[mod]['gy'] = grad_output[0] * grad_output[0].size(0)
+            print(torch.norm(grad_output[0]))
 
     def _precond(self, weight, bias, group, state):
         """Applies preconditioning."""

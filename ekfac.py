@@ -1,3 +1,4 @@
+import ipdb
 import torch
 import torch.nn.functional as F
 
@@ -7,7 +8,7 @@ from torch.optim.optimizer import Optimizer
 class EKFAC(Optimizer):
 
     def __init__(self, net, eps, sua=False, ra=False, update_freq=1,
-                 alpha=.75):
+                 alpha=1.):
         """ EKFAC Preconditionner for Linear and Conv2d layers.
 
         Computes the EKFAC of the second moment of the gradients.
@@ -62,8 +63,13 @@ class EKFAC(Optimizer):
                 weight = group['params'][0]
                 bias = None
             state = self.state[weight]
+            # print(torch.norm(weight.grad.data))
             # Update convariances and inverses
             if self._iteration_counter % self.update_freq == 0:
+                # deal with small gradient
+                # mod = group['mod']
+                # temp = self.state[mod]['gy']
+                # if torch.isnan(temp).any(): return
                 self._compute_kfe(group, state)
             # Preconditionning
             if group['layer_type'] == 'Conv2d' and self.sua:
@@ -76,6 +82,10 @@ class EKFAC(Optimizer):
                     self._precond_ra(weight, bias, group, state)
                 else:
                     self._precond_intra(weight, bias, group, state)
+        # for group in self.param_groups:
+        #     weight = group['params'][0]
+            # print('after scale')
+            # print(torch.norm(weight.grad.data))
         self._iteration_counter += 1
 
     def _save_input(self, mod, i):
@@ -85,6 +95,10 @@ class EKFAC(Optimizer):
     def _save_grad_output(self, mod, grad_input, grad_output):
         """Saves grad on output of layer to compute covariance."""
         self.state[mod]['gy'] = grad_output[0] * grad_output[0].size(0)
+        # if torch.isnan(grad_output[0]).any():
+        # print(torch.norm(grad_output[0]))
+        # ipdb.set_trace()
+        #     print(grad_output)
 
     def _precond_ra(self, weight, bias, group, state):
         """Applies preconditioning."""
@@ -249,6 +263,9 @@ class EKFAC(Optimizer):
         mod = group['mod']
         x = self.state[group['mod']]['x']
         gy = self.state[group['mod']]['gy']
+        # print(torch.norm(gy))
+        # if torch.isnan(gy).any():
+        #     return
         # Computation of xxt
         if group['layer_type'] == 'Conv2d':
             if not self.sua:
@@ -262,7 +279,7 @@ class EKFAC(Optimizer):
             ones = torch.ones_like(x[:1])
             x = torch.cat([x, ones], dim=0)
         xxt = torch.mm(x, x.t()) / float(x.shape[1])
-        Ex, state['kfe_x'] = torch.symeig(xxt, eigenvectors=True)
+        Ex, state['kfe_x'] = torch.symeig(xxt+1e-8*torch.eye(xxt.shape[0]).to(xxt.device), eigenvectors=True)
         # Computation of ggt
         if group['layer_type'] == 'Conv2d':
             gy = gy.data.permute(1, 0, 2, 3)
@@ -272,7 +289,8 @@ class EKFAC(Optimizer):
             gy = gy.data.t()
             state['num_locations'] = 1
         ggt = torch.mm(gy, gy.t()) / float(gy.shape[1])
-        Eg, state['kfe_gy'] = torch.symeig(ggt, eigenvectors=True)
+        # Eg, state['kfe_gy'] = torch.symeig(ggt, eigenvectors=True)
+        Eg, state['kfe_gy'] = torch.linalg.eigh(ggt+1e-8*torch.eye(ggt.shape[0]).to(ggt.device))
         state['m2'] = Eg.unsqueeze(1) * Ex.unsqueeze(0) * state['num_locations']
         if group['layer_type'] == 'Conv2d' and self.sua:
             ws = group['params'][0].grad.data.size()
