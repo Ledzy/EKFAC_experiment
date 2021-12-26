@@ -17,10 +17,15 @@ class MLPNet(nn.Module):
         return x
 
 class AEMNIST(nn.Module):
-    def __init__(self):
+    def __init__(self, use_bn=True):
         super(AEMNIST, self).__init__()
         units = [28*28, 1000, 500, 250, 30, \
                     250, 500, 1000, 28*28]
+        layers = []
+        for i in range(len(units)-1):
+            layers.append(nn.Linear(units[i], units[i+1]))
+            if use_bn:
+                layers.append(nn.BatchNorm1d(units[i+1])) # TODO check if last layer should use BN
         self.fc_layers = nn.ModuleList([nn.Linear(units[i], units[i+1]) for i in range(len(units)-1)])
         # for i in range(len(units)-1):
         #     self.fc_layers.append(nn.Linear(units[i], units[i+1]))
@@ -28,7 +33,7 @@ class AEMNIST(nn.Module):
     def forward(self, x):
         x = x.view(-1, 28*28)
         for fc in self.fc_layers:
-            x = F.sigmoid(fc(x))
+            x = torch.sigmoid(fc(x))
         return x
 
 class CNN(nn.Module):
